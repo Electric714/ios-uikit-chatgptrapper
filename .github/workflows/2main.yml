@@ -1,0 +1,45 @@
+name: Build Unsigned IPA
+
+on:
+  push:
+    branches: [ "main" ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: macos-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Select Xcode
+        # This selects the default stable Xcode on the runner instead of a specific path
+        run: sudo xcode-select -s /Applications/Xcode.app
+
+      - name: Build App (Unsigned)
+        run: |
+          xcodebuild clean build \
+            -project Rapper.xcodeproj \
+            -scheme Rapper \
+            -configuration Release \
+            -sdk iphoneos \
+            -derivedDataPath build \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY="" \
+            AD_HOC_CODE_SIGNING_ALLOWED=YES
+
+      - name: Package into IPA
+        run: |
+          mkdir -p Payload
+          # Using a wildcard to catch the .app folder regardless of exact naming
+          cp -r build/Build/Products/Release-iphoneos/*.app Payload/
+          zip -r Rapper-Unsigned.ipa Payload
+          rm -rf Payload
+
+      - name: Upload IPA Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Rapper-Unsigned-IPA
+          path: Rapper-Unsigned.ipa
